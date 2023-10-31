@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:memoria/service/skin_type.dart';
 import 'package:memoria/service/websocket_manager.dart';
 import '../service/game_manager.dart';
 import '../widgets/card_piece.dart';
 import '../widgets/player_score.dart';
 
+enum GameType {
+  single,
+  localMulti,
+  onlineMulti
+}
+
 class GamePage extends StatefulWidget {
-  final bool myTurn;
-  const GamePage({super.key, required this.myTurn});
+  final bool? myTurn;
+  final GameType gameType;
+  const GamePage({super.key, this.myTurn, required this.gameType});
 
   @override
   State<GamePage> createState() => _GamePageState();
@@ -16,6 +24,7 @@ class _GamePageState extends State<GamePage> {
 
   GameManager gameManager = GameManager();
   WebSocketManager webSocketManager = WebSocketManager();
+  SkinManager skinManager = SkinManager();
 
   int? rotatedPieceA;
   int? rotatedPieceAValue;
@@ -25,28 +34,34 @@ class _GamePageState extends State<GamePage> {
   int player1Score = 0;
   int player2Score = 0;
 
+  int nTurnos = 0;
+  int nMatches = 0;
+
   bool myTurn = true;
 
   Set matches = Set();
 
-  List<bool> matchedList = [
-    false, false, false, false,
-    false, false, false, false,
-    false, false, false, false,
-    false, false, false, false,
-    false, false, false, false,
+  List<int> matchedList = [
+    -1, -1, -1, -1,
+    -1, -1, -1, -1,
+    -1, -1, -1, -1,
+    -1, -1, -1, -1,
+    -1, -1, -1, -1,
   ];
 
   @override
   void initState() {
-    myTurn = widget.myTurn;
+    myTurn = widget.myTurn ?? true;
     super.initState();
+    skinManager.refreshImages();
 
     // webSocketManager.signCallback("my_selection", onMySelection);
-    webSocketManager.signCallback("player_selection", onMySelection);
+    if (widget.gameType == GameType.onlineMulti) {
+      webSocketManager.signCallback("player_selection", onPlayerSelection);
+    }
   }
 
-  void onMySelection(dynamic values) {
+  void onPlayerSelection(dynamic values) {
     int index = values['index'], value = values['value'];
     if (rotatedPieceA == null) {
       setState(() {
@@ -79,46 +94,109 @@ class _GamePageState extends State<GamePage> {
     if (index == rotatedPieceB) {
       return rotatedPieceBValue;
     }
+    if (matchedList[index] >= 0) {
+      return matchedList[index];
+    }
     return null;
   }
 
   rotatePiece(int index) {
+    if (matchedList[index] >= 0) {
+      return;
+    }
     // if not my turn return
     // emit select piece
-    if (!myTurn) {
+    if (widget.gameType == GameType.onlineMulti && !myTurn) {
       return;
     }
     if (index == rotatedPieceA || index == rotatedPieceB) {
       return;
     }
-    webSocketManager.emit("selection", index);
+
+    switch (widget.gameType) {
+      case GameType.onlineMulti:
+        webSocketManager.emit("selection", index);
+        break;
+      case GameType.localMulti:
+      case GameType.single:
+        onPlayerSelection({"index": index, "value": gameManager.getPieceAt(index)});
+        break;
+      default:
+        break;
+    }
   }
 
   checkMatch() {
-    if (rotatedPieceAValue == rotatedPieceBValue) {
-
+    if (rotatedPieceAValue == rotatedPieceBValue && rotatedPieceA != rotatedPieceB) {
       setState(() {
-        matchedList[rotatedPieceA!] = true;
-        matchedList[rotatedPieceB!] = true;
+        matchedList[rotatedPieceA!] = rotatedPieceAValue ?? -1;
+        matchedList[rotatedPieceB!] = rotatedPieceBValue ?? -1;
         if (myTurn) {
           player1Score++;
         } else {
           player2Score++;
         }
+        nMatches++;
       });
     }
-    myTurn = !myTurn;
+    if (widget.gameType != GameType.single) {
+      myTurn = !myTurn;
+    }
+    setState(() {
+      nTurnos++;
+    });
+    if (nMatches == matchedList.length/2) {
+      gameOver();
+    }
+  }
+
+  gameOver() {
+    String winner = "Jogador Azul";
+    int points = player2Score;
+    if (player1Score > player2Score) {
+      winner = "Jogador Vermelho";
+      points = player1Score;
+    }
+    String endText = "$winner venceu com $points pontos!";
+    if (player1Score == player2Score) {
+      endText = "Houve um Empate!";
+    }
+    if (widget.gameType == GameType.single) {
+      endText = "Você completou o jogo com ${nTurnos - player1Score} jogadas";
+    }
+    showDialog(
+      context: context,
+      builder: (c) {
+        return AlertDialog(
+          title: const Text("Fim de Jogo"),
+          content: Text(endText),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
+              }, 
+              child: const Text("Voltar ao Menu")
+            )
+          ],
+        );
+      }
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+
+    bool isSinglePlayer = widget.gameType == GameType.single;
+    String text = isSinglePlayer ? "Número de Jogadas" :"Pontuação";
+    int score = isSinglePlayer ? nTurnos - player1Score:player1Score;
     return Scaffold(
       body: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          PlayerScore(isTop: true, score: player1Score,),
+          PlayerScore(isTop: true, score: score, text: text),
           Center(child: gameGrid()),
-          PlayerScore(isTop: false, score: player2Score),
+          isSinglePlayer? const SizedBox.shrink(): PlayerScore(isTop: false, score: player2Score, text: "Pontuação",),
         ],
       ),
     );
@@ -138,7 +216,7 @@ class _GamePageState extends State<GamePage> {
             value: value, 
             isRotated: isRotated, 
             rotatePiece: rotatePiece,
-            matched: matchedList[index],
+            matched: matchedList[index] >= 0,
           )
         );
       }
@@ -150,6 +228,7 @@ class _GamePageState extends State<GamePage> {
       );
     }
     return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: rowList,
     );
   }

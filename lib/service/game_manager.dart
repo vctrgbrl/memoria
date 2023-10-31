@@ -1,11 +1,9 @@
+import 'dart:math';
+
 class GameManager {
-  List<int>  pieces = [
-    1,2,3,4,
-    5,6,7,8,
-    9,10,1,2,
-    3,4,5,6,
-    7,8,9,10
-  ];
+  List<int>  pieces = [];
+
+  int size = 10;
 
   int player1Score = 0;
   int player2Score = 0;
@@ -14,6 +12,22 @@ class GameManager {
 
   int? playerSelectionA;
   int? playerSelectionB;
+
+  GameManager() {
+    for (var i = 0; i < 2*size; i++) {
+      pieces.add(i%size);
+    }
+    shuffle();
+  }
+
+  shuffle() {
+    for (var i = 0; i < pieces.length; i++) {
+      int n = Random().nextInt(pieces.length);
+      int temp = pieces[i];
+      pieces[i] = pieces[n];
+      pieces[n] = temp;
+    }
+  }
 
   int getPieceAt(int index) {
     return pieces[index]; 

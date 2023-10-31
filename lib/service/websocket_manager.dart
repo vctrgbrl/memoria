@@ -11,7 +11,7 @@ class WebSocketManager {
 
   WebSocketManager._internal() {
     _socket = IO.io(
-      'http://200.20.1.15:3000', 
+      'http://localhost:3000', 
       IO.OptionBuilder().setTransports(['websocket']).build()
     );
     _socket.onDisconnect((_) => print('disconnect'));
@@ -21,6 +21,10 @@ class WebSocketManager {
 
   signCallback(String event, void Function(dynamic) c) {
     _socket.on(event, c);
+  }
+
+  signOnConnectionError(void Function(dynamic) c) {
+    _socket.onConnectError(c);
   }
 
   removeCallback(String event, void Function(dynamic) c) {

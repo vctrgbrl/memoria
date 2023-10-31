@@ -4,8 +4,9 @@ class PlayerScore extends StatefulWidget {
 
   final bool isTop;
   final int score;
+  final String text;
 
-  const PlayerScore({super.key, required this.isTop, required this.score});
+  const PlayerScore({super.key, required this.text, required this.isTop, required this.score});
 
   @override
   State<PlayerScore> createState() => _PlayerScoreState();
@@ -31,7 +32,7 @@ class _PlayerScoreState extends State<PlayerScore> {
         backgroundColor: Colors.transparent,
         child: Text("V"),
       ),
-      Text("Pontuação: ${widget.score}")
+      Text("${widget.text}: ${widget.score}")
     ];
     return Container(
       decoration: ShapeDecoration(

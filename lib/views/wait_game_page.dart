@@ -1,7 +1,6 @@
 import 'dart:js_interop';
 
 import 'package:flutter/material.dart';
-import 'package:memoria/routes/routes.dart';
 import 'package:memoria/views/game_page.dart';
 import '../service/websocket_manager.dart';
 
@@ -46,7 +45,7 @@ class _WaitGameState extends State<WaitGame> {
     // Navigator.of(context).pushReplacementNamed(Routes.game);
     if (!context.mounted) return;
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (c) => GamePage(myTurn: !widget.start))
+      MaterialPageRoute(builder: (c) => GamePage(myTurn: !widget.start, gameType: GameType.onlineMulti,))
     );
   }
 
